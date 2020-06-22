@@ -245,11 +245,10 @@ data BlockchainCounters = BlockchainCounters
   , bcNodeCannotLeadNum      :: !Word64
   , bcNodeIsLeaderNum        :: !Word64
   , bcSlotsMissedNum         :: !Word64
-  , bcForksCreatedNum        :: !Word64
   }
 
 initialBlockchainCounters :: BlockchainCounters
-initialBlockchainCounters = BlockchainCounters 0 0 0 0 0 0
+initialBlockchainCounters = BlockchainCounters 0 0 0 0 0
 
 -- | Smart constructor of 'NodeTraces'.
 --
@@ -294,7 +293,7 @@ mkTracers protoInfo traceConf' tracer bcCounters = do
       let tVerb = traceVerbosity traceConf
       in pure Tracers
                 { chainDBTracer = tracerOnOff' (traceChainDB traceConf) $
-                    annotateSeverity . teeTraceChainTip traceConf' bcCounters elidedChainDB $ appendName "ChainDB" tracer
+                    annotateSeverity . teeTraceChainTip traceConf' elidedChainDB $ appendName "ChainDB" tracer
                 , consensusTracers
                     = mkConsensusTracers' protoInfo elidedFetchDecision blockForgeOutcomeExtractor forgeTracers tracer (TracingOn traceConf) bcCounters
                 , nodeToClientTracers = nodeToClientTracers' (TracingOn traceConf) tracer
@@ -336,17 +335,15 @@ teeTraceChainTip
      , ToObject (Header blk)
      )
   => TraceOptions
-  -> IORef BlockchainCounters
   -> MVar (Maybe (WithSeverity (ChainDB.TraceEvent blk)), Integer)
   -> Trace IO Text
   -> Tracer IO (WithSeverity (ChainDB.TraceEvent blk))
-teeTraceChainTip tconf bChainCounters elided tr =
+teeTraceChainTip tconf elided tr =
   case tconf of
     TracingOff -> nullTracer
     TracingOn tSelect ->
       Tracer $ \ev -> do
        traceWith (teeTraceChainTip' tr) ev
-       traceWith (notifyForkIsCreated bChainCounters tr) ev
        traceWith (teeTraceChainTipElide (traceVerbosity tSelect) elided tr) ev
 
 teeTraceChainTipElide
@@ -388,22 +385,6 @@ teeTraceChainTip' tr =
             ChainDB.AddedToCurrentChain newTipInfo _ newChain ->
               traceChainInformation tr (chainInformation newTipInfo newChain)
             _ -> pure ()
-          _ -> pure ()
-
-notifyForkIsCreated
-  :: IORef BlockchainCounters
-  -> Trace IO Text
-  -> Tracer IO (WithSeverity (ChainDB.TraceEvent blk))
-notifyForkIsCreated bcCounters tr =
-    Tracer $ \(WithSeverity _ ev') ->
-      case ev' of
-          ChainDB.TraceAddBlockEvent ev -> case ev of
-              ChainDB.SwitchedToAFork {} -> do
-                  updatesForksCreated <- atomicModifyIORef' bcCounters (\cnts -> let nc = bcForksCreatedNum cnts + 1
-                                                                                 in (cnts { bcForksCreatedNum = nc }, nc)
-                                                                       )
-                  traceCounter "forksCreatedNum" updatesForksCreated tr
-              _ -> pure ()
           _ -> pure ()
 
 --------------------------------------------------------------------------------

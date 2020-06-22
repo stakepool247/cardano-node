@@ -132,7 +132,6 @@ data LiveViewState blk a = LiveViewState
     , lvsNodeCannotLead       :: !Word64
     , lvsLeaderNum            :: !Word64
     , lvsSlotsMissedNum       :: !Word64
-    , lvsCreatedForksNum      :: !Word64
     , lvsTransactions         :: !Word64
     , lvsPeersConnected       :: !Word64
     , lvsMempool              :: !Word64
@@ -412,13 +411,6 @@ instance IsEffectuator (LiveViewBackend blk) Text where
 
                                 return $ lvs { lvsSlotsMissedNum = fromIntegral missedSlotsNum }
 
-                    LogValue "forksCreatedNum" (PureI createdForksNum) ->
-                        modifyMVar_ (getbe lvbe) $ \lvs -> do
-
-                                checkForUnexpectedThunks ["forksCreatedNum LiveViewBackend"] lvs
-
-                                return $ lvs { lvsCreatedForksNum = fromIntegral createdForksNum }
-
                     _ -> pure ()
 
                 checkForUnexpectedThunks ["Cardano node metrics dispatch LiveViewBackend"] lvbe
@@ -512,7 +504,6 @@ initLiveViewState = do
                 , lvsNodeCannotLead         = 0
                 , lvsLeaderNum              = 0
                 , lvsSlotsMissedNum         = 0
-                , lvsCreatedForksNum        = 0
                 , lvsTransactions           = 0
                 , lvsPeersConnected         = 0
                 , lvsMempool                = 0
@@ -949,7 +940,6 @@ nodeInfoLabels =
            ,                    txt "slots lead:"
            ,                    txt "slots missed:"
            ,                    txt "cannot lead:"
-           ,                    txt "forks created:"
            , padTop (T.Pad 1) $ txt "TXs processed:"
            , padTop (T.Pad 1) $ txt "peers:"
            ]
@@ -970,7 +960,6 @@ nodeInfoValues lvs =
            ,                    str (show . lvsLeaderNum $ lvs)
            ,                    str (show . lvsSlotsMissedNum $ lvs)
            ,                    str (show . lvsNodeCannotLead $ lvs)
-           ,                    str (show . lvsCreatedForksNum $ lvs)
            , padTop (T.Pad 1) $ str (show . lvsTransactions $ lvs)
            , padTop (T.Pad 1) $ str (show . lvsPeersConnected $ lvs)
            ]
