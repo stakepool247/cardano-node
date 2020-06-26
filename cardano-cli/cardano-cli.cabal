@@ -171,6 +171,7 @@ test-suite cardano-cli-pioneers
 
   build-depends:        base
                       , bech32
+                      , cardano-api
                       , cardano-cli
                       , cardano-prelude
                       , directory
@@ -179,7 +180,8 @@ test-suite cardano-cli-pioneers
                       , text
                       , transformers-except
 
-  other-modules:        Test.ITN
+  other-modules:        Test.CLI.Shelley.TextEnvelope.PaymentKeys
+                        Test.ITN
                         Test.OptParse
                         Test.Pioneers.Exercise1
                         Test.Pioneers.Exercise2
