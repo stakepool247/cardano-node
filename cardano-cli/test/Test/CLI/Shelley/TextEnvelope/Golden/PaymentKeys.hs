@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.CLI.Shelley.TextEnvelope.PaymentKeys
-  ( tests
+module Test.CLI.Shelley.TextEnvelope.Golden.PaymentKeys
+  ( golden_shelleyPaymentKeys
   ) where
 
 import           Cardano.Prelude
@@ -20,13 +20,13 @@ import           Test.OptParse
 -- | 1. We generate a key pair
 --   2. We check for the existence of the key pair
 --   3. We check the TextEnvelope serialization format has not changed.
-prop_shelleyPaymentKeys :: Property
-prop_shelleyPaymentKeys =
+golden_shelleyPaymentKeys :: Property
+golden_shelleyPaymentKeys =
   propertyOnce $ do
 
     -- Reference keys
-    let reference_ver_key = "test/Test/golden/payment_keys/verification_key"
-        reference_sign_key = "test/Test/golden/payment_keys/signing_key"
+    let reference_ver_key = "test/Test/golden/shelley/payment_keys/verification_key"
+        reference_sign_key = "test/Test/golden/shelley/payment_keys/signing_key"
 
     -- Key filepaths
     let verKey = "address-verification-key-file"
@@ -36,7 +36,7 @@ prop_shelleyPaymentKeys =
     -- Generate payment verification key
     execCardanoCLIParser
       createdFiles
-      "prop_shelleyPaymentKeys.payment_keypair_gen"
+      "golden_shelleyPaymentKeys.payment_keypair_gen"
         $ evalCardanoCLIParser [ "shelley","address","key-gen"
                                , "--verification-key-file", verKey
                                , "--signing-key-file", signKey
@@ -55,12 +55,3 @@ prop_shelleyPaymentKeys =
 
     liftIO $ fileCleanup createdFiles
     H.success
-
--- -----------------------------------------------------------------------------
-
-tests :: IO Bool
-tests =
-  H.checkSequential
-    $ H.Group "TextEnvelopeGoldens"
-        [ ("prop_shelleyPaymentKeys", prop_shelleyPaymentKeys)
-        ]

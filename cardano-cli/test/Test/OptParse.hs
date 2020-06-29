@@ -60,11 +60,11 @@ execCardanoCLIParser fps cmdName pureParseResult =
     Failure failure -> let (parserHelp, _exitCode, cols) = Opt.execFailure failure cmdName
                            helpMessage = renderHelp cols parserHelp cmdName
 
-                       in liftIO (fileCleanup fps) >> failWith Nothing helpMessage
+                       in liftIO (fileCleanup fps) >> failWithCustom callStack Nothing helpMessage
 
 
     CompletionInvoked compl -> do msg <- lift $ Opt.execCompletion compl cmdName
-                                  liftIO (fileCleanup fps) >> failWith Nothing msg
+                                  liftIO (fileCleanup fps) >> failWithCustom callStack Nothing msg
 
 -- | Executes a `ClientCommand`. If successful the property passes
 -- if not, the property fails and the error is rendered.
