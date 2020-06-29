@@ -1,4 +1,21 @@
-{
+let
+  defaultGenesisParams = {
+    protocolParams = {
+      poolDeposit = 500000000;
+      keyDeposit = 400000;
+      nOpt = 10;
+      rho = 0.0022;
+      tau = 0.05;
+      a0 = 0.3;
+    };
+    slotLength = 0.2;
+    activeSlotsCoeff = 0.1;
+    securityParam = 10;
+    epochLength = 1500;
+    maxLovelaceSupply = 45000000000000000;
+  };
+
+in {
   pkgs
 , lib
 , cardano-cli
@@ -8,6 +25,7 @@
 , basePort ? 30000
 , stateDir ? "./state-cluster"
 , initialFunds ? import ./initial-funds.nix
+, genesisParams ? {}
 , ...
 }:
 let
@@ -100,32 +118,28 @@ let
     };
 
   }));
+  # creates a dummy genesis used as a template
+  genesisSpec = pkgs.runCommand "create-genesis" { buildInputs = [ cardano-cli ]; } ''
+    cardano-cli shelley genesis create --testnet-magic 42 \
+                                       --genesis-dir . \
+                                       --gen-genesis-keys ${toString numBft}
+    cp genesis.spec.json $out
+  '';
+  genesisSpecJSON = __fromJSON (__readFile genesisSpec);
+  genesisSpecMergedJSON = lib.foldl' lib.recursiveUpdate genesisSpec [ genesisParams defaultGenesisParams ];
   path = lib.makeBinPath [ cardano-cli pkgs.jq pkgs.gnused pkgs.coreutils pkgs.bash pkgs.moreutils ];
   genFiles = ''
     PATH=${path}
     rm -rf ${stateDir}
     mkdir -p ${stateDir}/{keys,webserver}
     cp ${__toFile "node.json" (__toJSON baseEnvConfig.nodeConfig)} ${stateDir}/config.json
+    cp ${pkgs.writeText "genesis.spec.json" (__toJSON genesisSpecMergedJSON)} ${stateDir}/keys/genesis.spec.json
     cardano-cli shelley genesis create --testnet-magic 42 \
                                        --genesis-dir ${stateDir}/keys \
                                        --gen-genesis-keys ${toString numBft} \
                                        --gen-utxo-keys 1
-    jq -r --arg slotLength 0.2 \
-          --arg activeSlotsCoeff 0.1 \
-          --arg securityParam 10 \
-          --arg epochLength 1500 \
-          --arg maxLovelaceSupply 45000000000000000 \
-          --arg decentralisationParam ${toString d} \
-          --arg updateQuorum ${toString numBft} \
-          --arg systemStart $(date --utc +"%Y-%m-%dT%H:%M:%SZ" --date="5 seconds") \
+    jq -r --arg systemStart $(date --utc +"%Y-%m-%dT%H:%M:%SZ" --date="5 seconds") \
            '.systemStart = $systemStart |
-            .slotLength = ($slotLength|tonumber) |
-            .activeSlotsCoeff = ($activeSlotsCoeff|tonumber) |
-            .securityParam = ($securityParam|tonumber) |
-            .epochLength = ($epochLength|tonumber) |
-            .maxLovelaceSupply = ($maxLovelaceSupply|tonumber) |
-            .protocolParams.decentralisationParam = ($decentralisationParam|tonumber) |
-            .updateQuorum = ($updateQuorum|tonumber) |
             .initialFunds = (${__toJSON initialFunds})' \
     ${stateDir}/keys/genesis.json | sponge ${stateDir}/keys/genesis.json
     for i in {1..${toString numBft}}
@@ -281,4 +295,4 @@ let
     fi
   '';
 
-in { inherit baseEnvConfig start stop; }
+in { inherit baseEnvConfig start stop genesisSpecMergedJSON genesisSpecJSON; }
